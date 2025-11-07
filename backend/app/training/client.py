@@ -337,18 +337,21 @@ prenoms_disponibles = prenoms_h + prenoms_f
 
 # --- 3. FONCTIONS DE GÉNÉRATION DE DONNÉES SYNTHÉTIQUES ---
 
-def generer_ribs_rapide(nombre_total=686):
-    banques_cibles = {"230": "CIH Bank", "007": "Attijariwafa Bank", "145": "Banque Populaire", "011": "BMCE Bank of Africa"}
+# MODIFIÉ : Logique pour 200 clients par banque
+def generer_ribs_rapide(nombre_total=600):
+    banques_cibles = {"230": "CIH Bank", "007": "Attijariwafa Bank", "145": "Banque Populaire"}
     ribs = []
-    clients_par_banque = nombre_total // len(banques_cibles)
-    if nombre_total % len(banques_cibles) != 0: clients_par_banque += 1
-        
+    
+    # Calcule 200 clients par banque
+    clients_par_banque = nombre_total // len(banques_cibles) # 600 // 3 = 200
+    
     for code_banque, _ in banques_cibles.items():
-        for i in range(clients_par_banque):
-             if len(ribs) >= nombre_total: break
+        # Boucle exactement 200 fois par banque
+        for i in range(clients_par_banque): 
              rib = f"{code_banque}{random.randint(10000, 99999):05d}{(i * 1234567) % 100000000000000:014d}{random.randint(0, 99):02d}"
              ribs.append({"RIB": rib})
-    return ribs[:nombre_total]
+             
+    return ribs # Retourne la liste complète (600 RIBs)
 
 def generer_client_unique(combinaisons_uniques, noms_famille, prenoms_disponibles, max_tentatives=1000):
     tentative = 0
@@ -360,13 +363,13 @@ def generer_client_unique(combinaisons_uniques, noms_famille, prenoms_disponible
             combinaisons_uniques.add(combinaison)
             return nom, prenom
         tentative += 1
-    raise Exception("Impossible de générer un nom unique. Les listes sont trop petites.")
+    # Augmentation du nombre de tentatives car les listes sont grandes
+    raise Exception("Impossible de générer un nom unique. Augmentez 'max_tentatives' ou vérifiez les listes.")
 
 # --- 4. DÉCOUVERTE DES SIGNATURES DISPONIBLES ---
 
 print(f"🔍 Scan du dossier de données : {LOCAL_DATA_DIR}")
 try:
-    # Déterminer la plage d'IDs de signatures
     signer_dirs = [d for d in os.listdir(LOCAL_DATA_DIR) if os.path.isdir(os.path.join(LOCAL_DATA_DIR, d)) and d.isdigit()]
     SIGNATURE_IDS = sorted(signer_dirs)
     NOMBRE_SIGNATAIRES_DS = len(SIGNATURE_IDS)
@@ -380,18 +383,19 @@ except FileNotFoundError:
 
 print(f"Nombre de signataires disponibles dans le DS : {NOMBRE_SIGNATAIRES_DS}")
 
-# --- 5. GÉNÉRATION DES CLIENTS ET LIAISON AUX DOSSIERS (Mise à jour) ---
+# --- 5. GÉNÉRATION DES CLIENTS ET LIAISON (Mise à jour) ---
 
-NOMBRE_CLIENTS = 686 
+# MODIFIÉ : Le nombre total de clients est 600
+NOMBRE_CLIENTS = 600
 ribs_rapides = generer_ribs_rapide(NOMBRE_CLIENTS)
 
-print("\n👥 Génération des clients et liaison aux dossiers d'entraînement...")
+print(f"\n👥 Génération de {NOMBRE_CLIENTS} clients (200 par banque)...")
 clients = []
 combinaisons_uniques = set()
 
 for i, rib_data in enumerate(ribs_rapides):
     try:
-        nom, prenom = generer_client_unique(combinaisons_uniques, noms_marocains, prenoms_disponibles)
+        nom, prenom = generer_client_unique(combinaisons_uniques, noms_marocains, prenoms_disponibles, 10000)
     except Exception as e:
         print(f"\nERREUR: {e}. Arrêt à {i} clients.")
         break
@@ -399,14 +403,14 @@ for i, rib_data in enumerate(ribs_rapides):
     # Attribution circulaire de l'ID de signature
     signature_id_ref = SIGNATURE_IDS[i % NOMBRE_SIGNATAIRES_DS]
     
-    # --- CHANGEMENT CLÉ ---
-    # Chemin relatif vers le dossier des signatures VRAIES (Genuine)
+    # Chemins relatifs (Genuine et Forged)
     path_genuine = os.path.join(LOCAL_DATA_DIR, signature_id_ref)
-    
-    # Chemin relatif vers le dossier des signatures FAUSSES (Forged)
     path_forged = os.path.join(LOCAL_DATA_DIR, f"{signature_id_ref}_forg")
     
     solde = round(random.uniform(100, 100000), 2)
+    
+    # AJOUTÉ : Statut de compte (depuis votre "premier code")
+    statut = random.choice(["Actif", "Inactif"])
 
     clients.append({
         "ID_CLIENT_SYNTH": i + 1,
@@ -414,9 +418,10 @@ for i, rib_data in enumerate(ribs_rapides):
         "Nom": nom,
         "Prénom": prenom,
         "Solde_MAD": solde,
-        "SIGNATURE_ID_REF": signature_id_ref, # L'ID du signataire (ex: '001')
-        "PATH_GENUINE": path_genuine,     # Chemin vers le dossier des vraies signatures
-        "PATH_FORGED": path_forged        # Chemin vers le dossier des fausses signatures
+        "Statut_Compte": statut, # AJOUTÉ
+        "SIGNATURE_ID_REF": signature_id_ref,
+        "PATH_GENUINE": path_genuine,
+        "PATH_FORGED": path_forged
     })
 
 df = pd.DataFrame(clients)
@@ -429,4 +434,4 @@ print("\n--- RÉSULTAT FINAL ---")
 print(f"🎉 TERMINÉ ! {len(df)} clients synthétiques liés à {NOMBRE_SIGNATAIRES_DS} dossiers de signataires.")
 print(f"💾 Fichier CSV de mapping sauvegardé dans: {NOM_FICHIER_FINAL}")
 print("\nExemple de structure du CSV (premiers clients) :")
-print(df[['ID_CLIENT_SYNTH', 'Nom', 'SIGNATURE_ID_REF', 'PATH_GENUINE', 'PATH_FORGED']].head())
+print(df[['ID_CLIENT_SYNTH', 'Nom', 'RIB', 'Statut_Compte', 'SIGNATURE_ID_REF']].head())
