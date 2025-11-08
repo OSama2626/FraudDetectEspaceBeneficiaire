@@ -1,20 +1,18 @@
-# Installation des dépendances (si nécessaire)
-# !pip install faker pandas
-
-import random
 import pandas as pd
+import random
 import os
 from faker import Faker
 
-print("Script de génération de dataset (Mode Entraînement) démarré...")
+print("Script de génération de dataset (Clients et Bénéficiaires) démarré...")
 
 # --- 1. CONFIGURATION DES CHEMINS ---
-# Le chemin RELATIF vers le dossier 'sign_data' (comme vous l'avez déplacé)
-# Ce chemin doit être correct par rapport à l'endroit où vous exécutez ce script.
 LOCAL_DATA_DIR = "backend/app/data/sign_data"
+NOM_FICHIER_CLIENTS = "backend/app/data/clients_training_map.csv"
+NOM_FICHIER_BENEFICIAIRES = "backend/app/data/beneficiaires.csv"
 
-# Emplacement de sauvegarde du fichier CSV final
-NOM_FICHIER_FINAL = "backend/app/data/clients_avec_signatures_ref.csv"
+# S'assurer que le dossier de données existe
+os.makedirs("backend/app/data", exist_ok=True)
+
 
 # --- 2. LISTES DE NOMS (Données marocaines) ---
 fake = Faker('fr_FR')
@@ -337,37 +335,83 @@ prenoms_disponibles = prenoms_h + prenoms_f
 
 # --- 3. FONCTIONS DE GÉNÉRATION DE DONNÉES SYNTHÉTIQUES ---
 
-# MODIFIÉ : Logique pour 200 clients par banque
+def generer_noms_uniques(prenoms_list, noms_list, total_requis, noms_exclus=None):
+    """
+    Génère une liste de noms uniques (prénom + nom).
+    Vérifie qu'un nom n'est pas dans le set 'noms_exclus'.
+    """
+    if noms_exclus is None:
+        noms_exclus = set()
+        
+    noms_uniques_set = set()
+    data_list = []
+    
+    # Augmentation des tentatives car les listes sont partagées
+    max_tentatives = total_requis * 20 
+    tentatives = 0
+
+    while len(data_list) < total_requis and tentatives < max_tentatives:
+        prenom = random.choice(prenoms_list)
+        nom = random.choice(noms_list)
+        full_name = f"{prenom} {nom}"
+        
+        # CONTRAINTE 2 : Le nom ne doit pas être déjà utilisé (dans ce set)
+        # ET ne doit pas être dans le set des noms exclus (les clients)
+        if full_name not in noms_uniques_set and full_name not in noms_exclus:
+            noms_uniques_set.add(full_name)
+            data_list.append({"prenom": prenom, "nom": nom})
+            
+        tentatives += 1
+
+    if len(data_list) < total_requis:
+        print(f"Attention: Listes de noms trop petites, arrêt à {len(data_list)} noms uniques.")
+                
+    return data_list, noms_uniques_set
+
 def generer_ribs_rapide(nombre_total=600):
     banques_cibles = {"230": "CIH Bank", "007": "Attijariwafa Bank", "145": "Banque Populaire"}
     ribs = []
-    
-    # Calcule 200 clients par banque
     clients_par_banque = nombre_total // len(banques_cibles) # 600 // 3 = 200
     
     for code_banque, _ in banques_cibles.items():
-        # Boucle exactement 200 fois par banque
         for i in range(clients_par_banque): 
              rib = f"{code_banque}{random.randint(10000, 99999):05d}{(i * 1234567) % 100000000000000:014d}{random.randint(0, 99):02d}"
              ribs.append({"RIB": rib})
-             
-    return ribs # Retourne la liste complète (600 RIBs)
+    return ribs
 
-def generer_client_unique(combinaisons_uniques, noms_famille, prenoms_disponibles, max_tentatives=1000):
-    tentative = 0
-    while tentative < max_tentatives:
-        nom = random.choice(noms_famille)
-        prenom = random.choice(prenoms_disponibles)
-        combinaison = f"{nom}_{prenom}"
-        if combinaison not in combinaisons_uniques:
-            combinaisons_uniques.add(combinaison)
-            return nom, prenom
-        tentative += 1
-    # Augmentation du nombre de tentatives car les listes sont grandes
-    raise Exception("Impossible de générer un nom unique. Augmentez 'max_tentatives' ou vérifiez les listes.")
+# --- 4. PARTIE 1 : GÉNÉRATION DES 1000 BÉNÉFICIAIRES ---
 
-# --- 4. DÉCOUVERTE DES SIGNATURES DISPONIBLES ---
+print("\n--- Partie 1 : Génération des 1000 Bénéficiaires ---")
+NOMBRE_BENEFICIAIRES = 1000
 
+# Générer les 1000 bénéficiaires uniques
+beneficiaires_data, beneficiaires_names_set = generer_noms_uniques(
+    prenoms_disponibles, 
+    noms_marocains, 
+    NOMBRE_BENEFICIAIRES
+)
+
+df_beneficiaires = pd.DataFrame(beneficiaires_data)
+df_beneficiaires.reset_index(inplace=True)
+df_beneficiaires.rename(columns={'index': 'ID_Beneficiaire'}, inplace=True)
+df_beneficiaires['ID_Beneficiaire'] = df_beneficiaires['ID_Beneficiaire'] + 1 # ID de 1 à 1000
+
+# AJOUT : Colonne Numéro_Cheque (simulant le chèque qu'ils ont reçu)
+df_beneficiaires['Numero_Cheque'] = [random.randint(2000000, 9999999) for _ in range(len(df_beneficiaires))]
+
+# Sauvegarde
+df_beneficiaires.to_csv(NOM_FICHIER_BENEFICIAIRES, index=False, encoding="utf-8-sig")
+
+print(f"✅ Fichier '{NOM_FICHIER_BENEFICIAIRES}' généré avec {len(df_beneficiaires)} bénéficiaires uniques.")
+print("\nExemple de structure du CSV (bénéficiaires) :")
+print(df_beneficiaires.head())
+
+
+# --- 5. PARTIE 2 : GÉNÉRATION DES 600 CLIENTS ---
+
+print("\n--- Partie 2 : Génération des 600 Clients ---")
+
+# Scan des dossiers de signatures
 print(f"🔍 Scan du dossier de données : {LOCAL_DATA_DIR}")
 try:
     signer_dirs = [d for d in os.listdir(LOCAL_DATA_DIR) if os.path.isdir(os.path.join(LOCAL_DATA_DIR, d)) and d.isdigit()]
@@ -375,63 +419,79 @@ try:
     NOMBRE_SIGNATAIRES_DS = len(SIGNATURE_IDS)
     if NOMBRE_SIGNATAIRES_DS == 0:
          raise ValueError(f"Aucun dossier de signataire trouvé dans {LOCAL_DATA_DIR}.")
-
 except FileNotFoundError:
     print(f"ERREUR FATALE: Le dossier '{LOCAL_DATA_DIR}' n'a pas été trouvé.")
-    print(f"Assurez-vous que le dossier 'sign_data' est bien dans '{os.path.abspath('backend/app/data/')}'.")
     exit()
-
 print(f"Nombre de signataires disponibles dans le DS : {NOMBRE_SIGNATAIRES_DS}")
 
-# --- 5. GÉNÉRATION DES CLIENTS ET LIAISON (Mise à jour) ---
-
-# MODIFIÉ : Le nombre total de clients est 600
+# Génération des 600 clients
 NOMBRE_CLIENTS = 600
 ribs_rapides = generer_ribs_rapide(NOMBRE_CLIENTS)
-
 print(f"\n👥 Génération de {NOMBRE_CLIENTS} clients (200 par banque)...")
-clients = []
-combinaisons_uniques = set()
 
+# CONTRAINTE 2 : Générer des noms clients qui NE SONT PAS dans la liste des bénéficiaires
+clients_data, _ = generer_noms_uniques(
+    prenoms_disponibles, 
+    noms_marocains, 
+    NOMBRE_CLIENTS,
+    noms_exclus=beneficiaires_names_set # <-- Vérification d'unicité
+)
+
+clients = []
 for i, rib_data in enumerate(ribs_rapides):
-    try:
-        nom, prenom = generer_client_unique(combinaisons_uniques, noms_marocains, prenoms_disponibles, 10000)
-    except Exception as e:
-        print(f"\nERREUR: {e}. Arrêt à {i} clients.")
-        break
+    nom_prenom = clients_data[i]
     
-    # Attribution circulaire de l'ID de signature
     signature_id_ref = SIGNATURE_IDS[i % NOMBRE_SIGNATAIRES_DS]
-    
-    # Chemins relatifs (Genuine et Forged)
     path_genuine = os.path.join(LOCAL_DATA_DIR, signature_id_ref)
     path_forged = os.path.join(LOCAL_DATA_DIR, f"{signature_id_ref}_forg")
-    
     solde = round(random.uniform(100, 100000), 2)
-    
-    # AJOUTÉ : Statut de compte (depuis votre "premier code")
     statut = random.choice(["Actif", "Inactif"])
 
     clients.append({
         "ID_CLIENT_SYNTH": i + 1,
         "RIB": rib_data["RIB"],
-        "Nom": nom,
-        "Prénom": prenom,
+        "Nom": nom_prenom['nom'],
+        "Prénom": nom_prenom['prenom'],
         "Solde_MAD": solde,
-        "Statut_Compte": statut, # AJOUTÉ
+        "Statut_Compte": statut,
         "SIGNATURE_ID_REF": signature_id_ref,
         "PATH_GENUINE": path_genuine,
         "PATH_FORGED": path_forged
     })
 
-df = pd.DataFrame(clients)
+df_clients = pd.DataFrame(clients)
 
-# --- 6. SAUVEGARDE LOCALE ---
+# --- 6. PARTIE 3 : LIAISON DES BÉNÉFICIAIRES (Contrainte 1) ---
+print("\n🔗 Liaison des 1000 bénéficiaires aux 600 clients (sans partage)...")
 
-df.to_csv(NOM_FICHIER_FINAL, index=False, encoding='utf-8')
+# 1. Pool d'IDs (1 à 1000)
+all_beneficiaries_ids = list(range(1, NOMBRE_BENEFICIAIRES + 1))
+random.shuffle(all_beneficiaries_ids)
 
-print("\n--- RÉSULTAT FINAL ---")
-print(f"🎉 TERMINÉ ! {len(df)} clients synthétiques liés à {NOMBRE_SIGNATAIRES_DS} dossiers de signataires.")
-print(f"💾 Fichier CSV de mapping sauvegardé dans: {NOM_FICHIER_FINAL}")
-print("\nExemple de structure du CSV (premiers clients) :")
-print(df[['ID_CLIENT_SYNTH', 'Nom', 'RIB', 'Statut_Compte', 'SIGNATURE_ID_REF']].head())
+# 2. Map pour les attributions
+client_beneficiaries_map = {client_id: [] for client_id in df_clients['ID_CLIENT_SYNTH']}
+
+# 3. CONTRAINTE 1 : Attribuer 1 bénéficiaire à chaque client (les 600 premiers)
+#    .pop() garantit qu'un ID n'est utilisé qu'une seule fois.
+for i in range(NOMBRE_CLIENTS):
+    client_id = i + 1
+    if all_beneficiaries_ids: 
+        client_beneficiaries_map[client_id].append(all_beneficiaries_ids.pop())
+
+# 4. Distribuer les 400 bénéficiaires restants aléatoirement aux clients
+#    (Le pool 'all_beneficiaries_ids' contient maintenant les 400 restants)
+for ben_id in all_beneficiaries_ids:
+    random_client_id = random.randint(1, NOMBRE_CLIENTS)
+    client_beneficiaries_map[random_client_id].append(ben_id)
+
+# 5. Ajouter la colonne au DataFrame client
+df_clients['ID_Beneficiaires_Payes'] = df_clients['ID_CLIENT_SYNTH'].map(client_beneficiaries_map).astype(str)
+
+# --- 7. SAUVEGARDE LOCALE ---
+df_clients.to_csv(NOM_FICHIER_CLIENTS, index=False, encoding='utf-8')
+
+print("\n--- RÉSULTAT FINAL (CLIENTS) ---")
+print(f"🎉 TERMINÉ ! {len(df_clients)} clients synthétiques uniques générés.")
+print(f"💾 Fichier CSV de mapping client sauvegardé dans: {NOM_FICHIER_CLIENTS}")
+print("\nExemple de structure du CSV (clients) :")
+print(df_clients[['ID_CLIENT_SYNTH', 'Nom', 'RIB', 'ID_Beneficiaires_Payes']].head())
