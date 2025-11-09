@@ -15,7 +15,8 @@ function ClerkProviderWithRoutes() {
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      navigate={(to) => navigate(to)}
+      routerPush={(to: string) => navigate(to)}
+      routerReplace={(to: string) => navigate(to, { replace: true })}
     >
       <Routes>
         <Route path="/sign-in/*" element={<SignInPage />} />
