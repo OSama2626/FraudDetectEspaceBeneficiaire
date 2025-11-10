@@ -19,8 +19,8 @@ function App() {
         />
 
         {/* Page de callback pour les connexions OAuth (Google, etc.)
-        
-        <Route path="/auth-callback" element={<AuthCallbackPage />} />*/}
+        */}
+        <Route path="/auth-callback" element={<AuthCallbackPage />} />
 
 
         {/* Page de profil utilisateur
