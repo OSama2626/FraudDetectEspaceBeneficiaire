@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import SignUpPage from './pages/SignUpPage';
 import SignInPage from './pages/SignInPage';
@@ -13,6 +13,7 @@ function ClerkProviderWithRoutes() {
   const navigate = useNavigate();
 
   return (
+    // This is now the ONLY ClerkProvider
     <ClerkProvider
       publishableKey={clerkPubKey}
       routerPush={(to: string) => navigate(to)}
@@ -41,8 +42,7 @@ function ClerkProviderWithRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <ClerkProviderWithRoutes />
-    </BrowserRouter>
+    // The BrowserRouter is no longer here
+    <ClerkProviderWithRoutes />
   );
 }
