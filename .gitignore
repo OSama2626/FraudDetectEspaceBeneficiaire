@@ -27,3 +27,6 @@ __pycache__/
 #data
 /backend/app/data/sign_data/*
 !/backend/app/data/sign_data/.gitkeep
+
+/backend/app/data/cheques/cih/*
+!/backend/app/data/cheques/cih/.gitkeep
