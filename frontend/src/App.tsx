@@ -1,48 +1,40 @@
-import { Routes, Route, useNavigate } from 'react-router-dom';
-import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
-import SignUpPage from './pages/SignUpPage';
-import SignInPage from './pages/SignInPage';
+// FraudDetect-feature-auth/frontend/src/App.tsx
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import AuthPage from './pages/auth/AuthPage';
+import AuthCallbackPage from './pages/auth-callback/AuthCallbackPage';
+import ProfilePage from './pages/profile/ProfilePage';
+// 4. (Optionnel) Importez votre layout principal si vous en avez un
+// import MainLayout from './components/layout/MainLayout'; 
 
-if (!clerkPubKey) {
-  throw new Error("Missing Publishable Key");
-}
-
-function ClerkProviderWithRoutes() {
-  const navigate = useNavigate();
-
+function App() {
   return (
-    // This is now the ONLY ClerkProvider
-    <ClerkProvider
-      publishableKey={clerkPubKey}
-      routerPush={(to: string) => navigate(to)}
-      routerReplace={(to: string) => navigate(to, { replace: true })}
-    >
+    <BrowserRouter>
       <Routes>
-        <Route path="/sign-in/*" element={<SignInPage />} />
-        <Route path="/sign-up/*" element={<SignUpPage />} />
         <Route
-          path="/dashboard"
+          path="/auth"
           element={
-            <>
-              <SignedIn>
-                <div>Dashboard</div>
-              </SignedIn>
-              <SignedOut>
-                <RedirectToSignIn />
-              </SignedOut>
-            </>
+              <AuthPage />
           }
         />
+
+        {/* Page de callback pour les connexions OAuth (Google, etc.)
+        
+        <Route path="/auth-callback" element={<AuthCallbackPage />} />*/}
+
+
+        {/* Page de profil utilisateur
+        */}
+        <Route
+          path="/profile"
+          element={
+<ProfilePage />
+          }
+        />
+
       </Routes>
-    </ClerkProvider>
+    </BrowserRouter>
   );
 }
 
-export default function App() {
-  return (
-    // The BrowserRouter is no longer here
-    <ClerkProviderWithRoutes />
-  );
-}
+export default App;
