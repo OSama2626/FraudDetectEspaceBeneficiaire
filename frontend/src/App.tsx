@@ -1,48 +1,30 @@
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
-import SignUpPage from './pages/SignUpPage';
-import SignInPage from './pages/SignInPage';
+import { BrowserRouter as Router, Routes, Route} from "react-router-dom" ;
+import Dashboard from "./pages/Dashboard.tsx" ;
+import Login from "./pages/Login.tsx";
+import Signup from "./pages/Signup.tsx" ;
+import LandingPage from "./pages/LandingPage.tsx";
+import { SignedIn, SignedOut } from "@clerk/clerk-react";
+import Layout from "./Layouts/Layout.tsx";
+import UserLayout from "./Layouts/UserLayout.tsx";
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-if (!clerkPubKey) {
-  throw new Error("Missing Publishable Key");
-}
 
-function ClerkProviderWithRoutes() {
-  const navigate = useNavigate();
-
+function App() {
   return (
-    <ClerkProvider
-      publishableKey={clerkPubKey}
-      routerPush={(to: string) => navigate(to)}
-      routerReplace={(to: string) => navigate(to, { replace: true })}
-    >
+    <Router>
       <Routes>
-        <Route path="/sign-in/*" element={<SignInPage />} />
-        <Route path="/sign-up/*" element={<SignUpPage />} />
-        <Route
-          path="/dashboard"
-          element={
-            <>
-              <SignedIn>
-                <div>Dashboard</div>
-              </SignedIn>
-              <SignedOut>
-                <RedirectToSignIn />
-              </SignedOut>
-            </>
-          }
-        />
+        <Route path="/" element={<SignedOut><Layout /></SignedOut>}>
+          <Route index element={<LandingPage />} />
+          <Route path="login" element={<Login />} />
+          <Route path="signup" element={<Signup />} />
+        </Route>
+
+        <Route path="/dashboard" element={<SignedIn><UserLayout /></SignedIn>}>
+          <Route path="/dashboard" element={<Dashboard />} />
+        </Route>
       </Routes>
-    </ClerkProvider>
-  );
+    </Router>
+  ) ;
 }
 
-export default function App() {
-  return (
-    <BrowserRouter>
-      <ClerkProviderWithRoutes />
-    </BrowserRouter>
-  );
-}
+export default App ;
