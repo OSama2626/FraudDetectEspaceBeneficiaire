@@ -29,9 +29,9 @@ def on_startup():
 
 # --- INCLURE LES ROUTEURS ---
 # Inclut toutes les routes définies dans auth.py avec leur préfixe
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 # Inclut toutes les routes définies dans users.py
-app.include_router(users.router, prefix="/api/v1", tags=["Users"])
+app.include_router(users.router, prefix="/auth", tags=["Users"])
 
 
 # --- Route Publique (peut rester ici ou aller dans son propre routeur) ---
