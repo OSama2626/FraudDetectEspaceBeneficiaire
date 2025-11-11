@@ -18,9 +18,7 @@ async def get_current_user(request: Request) -> dict:
     try:
         request_state = clerk_sdk.authenticate_request(
             request,
-            AuthenticateRequestOptions(
-                authorized_parties=["http://localhost:5173", "http://localhost:5174"],
-            )
+            AuthenticateRequestOptions()
         )
 
         if not request_state.is_signed_in:

@@ -2,11 +2,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-# Imports depuis notre application
+# Imports depuis notre application - CORRECTION DES IMPORTS
 from ..core.db import get_db
-from ..utils.auth import get_current_user # <-- Import de la dépendance
+from ..utils.auth import get_current_user  # <-- CORRECT: utils.auth
 from ..models.user import User
-from ..schemas.user import UserSync      # <-- Import du schema
+from ..schemas.user import UserSync
 
 # Création d'un routeur
 router = APIRouter()

@@ -1,6 +1,6 @@
 # backend/app/routers/users.py
 from fastapi import APIRouter, Depends
-from ..utils.auth import get_current_user # <-- Import de la dépendance
+from ..utils.auth import get_current_user  # <-- CORRECT: utils.auth
 
 router = APIRouter()
 

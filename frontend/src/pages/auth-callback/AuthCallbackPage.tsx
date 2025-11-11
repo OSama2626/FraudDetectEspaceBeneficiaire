@@ -18,7 +18,7 @@ const AuthCallbackPage = () => {
 				syncAttempted.current = true;
 				
 				// (2) Appelle la NOUVELLE route de votre backend FastAPI
-				await apiClient.post("/api/v1/auth/callback", {
+				await apiClient.post("/auth/callback", {
 					// Le backend utilise l'ID du token, mais on envoie
 					// les données pour remplir la base de données
 					firstName: user.firstName,
@@ -27,7 +27,7 @@ const AuthCallbackPage = () => {
 					email: user.primaryEmailAddress?.emailAddress // (3) Envoie l'email
 				});
 			} catch (error) {
-				console.error("Erreur pendant la synchronisation /api/v1/auth/callback", error);
+				console.error("Erreur pendant la synchronisation /auth/callback", error);
 			} finally {
 				// (4) Redirige vers la page d'accueil de FraudDetect
 				navigate("/"); 
