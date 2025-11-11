@@ -9,8 +9,8 @@ const LandingPage: React.FC = () => {
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-800">DetectFraud</h1>
           <nav>
-            <Link to="/sign-in" className="text-gray-600 hover:text-gray-800 mx-4">Sign In</Link>
-            <Link to="/sign-up" className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Sign Up</Link>
+            <Link to="/Login" className="text-gray-600 hover:text-gray-800 mx-4">Sign In</Link>
+            <Link to="/signup" className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">Sign Up</Link>
           </nav>
         </div>
       </header>

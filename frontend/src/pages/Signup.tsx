@@ -1,7 +1,4 @@
-import { SignUp, SignUpStep, SignUpButton } from "@clerk/elements";
-import { ClerkLoaded, ClerkLoading, useSignUp } from "@clerk/clerk-react";
-import { useState } from "react";
-
+import AuthLayout from "./AuthLayout.tsx";
 export default function SignUpPage() {
   return (
     <div
@@ -15,7 +12,9 @@ export default function SignUpPage() {
       }}
     >
       <AuthLayout>
-        <SignIn signUpUrl="/signup" forceRedirectUrl={"/dashboard"}/>
+        {/* Custom Sign Up Form or Placeholder */}
+        <h2>Sign Up</h2>
+        {/* Add your sign-up form here */}
       </AuthLayout>
     </div>
   );
