@@ -227,16 +227,17 @@ const AuthPage = () => {
         {!pendingVerification && (
           <>
             <div className="relative my-6">
+              {/* 
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-zinc-700" />
               </div>
+              
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-zinc-900 px-2 text-zinc-400">Ou continuer avec</span>
-              </div>
+              </div>*/}
             </div>
-            {/*
+            {/* Boutons de connexion OAuth 
             <div className="flex flex-col gap-3">
-               Boutons de connexion OAuth 
               <Button
                 onClick={() => signInWithOAuth("oauth_google")}
                 variant="secondary"
@@ -245,7 +246,8 @@ const AuthPage = () => {
                 <img src="/google.png" alt="Google" className="size-5 mr-2" />
                 Continuer avec Google
               </Button>
-            </div>*/}
+            </div>
+            */}
           </>
         )}
       </div>
