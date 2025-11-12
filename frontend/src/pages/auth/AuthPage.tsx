@@ -1,3 +1,4 @@
+// AuthPage.tsx
 import { useSignIn, useSignUp, useClerk } from "@clerk/clerk-react";
 import { Button } from "../../components/ui/button";
 import { useState } from "react";
@@ -7,6 +8,7 @@ import PasswordStrengthMeter from "../../components/PasswordStrengthMeter";
 import AuthImagePattern from "../../components/AuthImagePattern";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import ForgotPassword from "../../components/ForgotPassword"; 
+// Les imports pour 'Select' ont été supprimés
 
 const AuthPage = () => {
   const { signIn, isLoaded: isSignInLoaded } = useSignIn();
@@ -17,23 +19,18 @@ const AuthPage = () => {
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [cin, setCin] = useState("");
+  const [rib, setRib] = useState("");
+  // const [role, setRole] = useState(""); // <-- Supprimé
   const [activeTab, setActiveTab] = useState("login");
   const [pendingVerification, setPendingVerification] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false); // Nouvel état
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   if (!isSignInLoaded || !isSignUpLoaded) return null;
-/*
-  const signInWithOAuth = (strategy: "oauth_google") => {
-    signIn.authenticateWithRedirect({
-      strategy,
-      redirectUrl: "/sso-callback",
-      redirectUrlComplete: "/auth-callback",
-    });
-  };
-*/
+
   const handleEmailSignIn = async () => {
     try {
       const result = await signIn.create({
@@ -52,7 +49,22 @@ const AuthPage = () => {
   };
 
   const handleSignUp = async () => {
+    // Validation des champs supplémentaires
+    if (!cin.trim()) {
+      setError("Le CIN est obligatoire");
+      return;
+    }
+    if (!rib.trim()) {
+      setError("Le RIB est obligatoire");
+      return;
+    }
+    // La validation du rôle a été supprimée
+
     try {
+      // Sauvegarder les données supplémentaires dans le localStorage
+      const userData = { cin, rib }; // 'role' a été supprimé de cet objet
+      localStorage.setItem('userRegistrationData', JSON.stringify(userData));
+
       await signUp.create({
         emailAddress: email,
         password,
@@ -65,6 +77,8 @@ const AuthPage = () => {
     } catch (err: any) {
       console.error("Erreur d'inscription:", err);
       setError(err.errors?.[0]?.longMessage || "Une erreur s'est produite lors de l'inscription.");
+      // Nettoyer en cas d'erreur
+      localStorage.removeItem('userRegistrationData');
     }
   };
 
@@ -211,6 +225,27 @@ const AuthPage = () => {
                     {showPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
+                
+                {/* CHAMPS CIN ET RIB */}
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    type="text"
+                    placeholder="CIN"
+                    value={cin}
+                    onChange={(e) => setCin(e.target.value)}
+                    className="bg-zinc-800 border-zinc-700 text-white"
+                  />
+                  <Input
+                    type="text"
+                    placeholder="RIB"
+                    value={rib}
+                    onChange={(e) => setRib(e.target.value)}
+                    className="bg-zinc-800 border-zinc-700 text-white"
+                  />
+                </div>
+                
+                {/* Le bloc <Select> pour le rôle a été supprimé d'ici */}
+
                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
                 <PasswordStrengthMeter password={password} />
                 <Button
@@ -223,38 +258,11 @@ const AuthPage = () => {
             </TabsContent>
           </Tabs>
         )}
-
-        {!pendingVerification && (
-          <>
-            <div className="relative my-6">
-              {/* 
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-zinc-700" />
-              </div>
-              
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-zinc-900 px-2 text-zinc-400">Ou continuer avec</span>
-              </div>*/}
-            </div>
-            {/* Boutons de connexion OAuth 
-            <div className="flex flex-col gap-3">
-              <Button
-                onClick={() => signInWithOAuth("oauth_google")}
-                variant="secondary"
-                className="w-full text-black border-zinc-200 h-11"
-              >
-                <img src="/google.png" alt="Google" className="size-5 mr-2" />
-                Continuer avec Google
-              </Button>
-            </div>
-            */}
-          </>
-        )}
       </div>
       <div className="flex-1 hidden lg:block">
         <AuthImagePattern
-          title="Welcome to customized fertilizers direction"
-          subtitle=""
+          title="FraudDetect"
+          subtitle="Bienvenue sur la plateforme de détection de fraude"
         />
       </div>
     </div>
