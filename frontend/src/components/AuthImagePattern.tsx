@@ -7,7 +7,7 @@ interface AuthImagePatternProps {
 }
 
 const AuthImagePattern: React.FC<AuthImagePatternProps> = ({ title, subtitle }) => {
-  const images = ["/ocp.jpeg"];
+  const images = ["/cheque.jpg"];
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
