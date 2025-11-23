@@ -4,9 +4,9 @@ import { useState } from "react";
 import { Input } from "../../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import PasswordStrengthMeter from "../../components/PasswordStrengthMeter";
-import AuthImagePattern from "../../components/AuthImagePattern";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import ForgotPassword from "../../components/ForgotPassword"; 
+import ForgotPassword from "../../components/ForgotPassword";
+import { saveUserExtra } from "../../lib/saveUserExtra";
 
 const AuthPage = () => {
   const { signIn, isLoaded: isSignInLoaded } = useSignIn();
@@ -22,18 +22,15 @@ const AuthPage = () => {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false); // Nouvel état
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  const [cin, setCin] = useState("");
+  const [phone, setPhone] = useState("");
+  const [rib, setRib] = useState("");
+  const [role, setRole] = useState("Beneficiaire");
 
   if (!isSignInLoaded || !isSignUpLoaded) return null;
-/*
-  const signInWithOAuth = (strategy: "oauth_google") => {
-    signIn.authenticateWithRedirect({
-      strategy,
-      redirectUrl: "/sso-callback",
-      redirectUrlComplete: "/auth-callback",
-    });
-  };
-*/
+
   const handleEmailSignIn = async () => {
     try {
       const result = await signIn.create({
@@ -47,24 +44,41 @@ const AuthPage = () => {
       }
     } catch (err: any) {
       console.error("Erreur de connexion:", err);
-      setError(err.errors?.[0]?.longMessage || "Une erreur s'est produite lors de la connexion.");
+      setError(err.errors?.[0]?.longMessage || "Erreur de connexion.");
     }
   };
 
   const handleSignUp = async () => {
     try {
-      await signUp.create({
+      const newUser = await signUp.create({
         emailAddress: email,
         password,
         firstName,
         lastName,
+        unsafeMetadata: {
+          cin,
+          phone,
+          rib,
+          role,
+        },
       });
 
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       setPendingVerification(true);
+
+      await saveUserExtra(
+        newUser.id!,
+        firstName,
+        lastName,
+        email,
+        cin,
+        phone,
+        rib,
+        role
+      );
     } catch (err: any) {
       console.error("Erreur d'inscription:", err);
-      setError(err.errors?.[0]?.longMessage || "Une erreur s'est produite lors de l'inscription.");
+      setError(err.errors?.[0]?.longMessage || "Erreur lors de l'inscription.");
     }
   };
 
@@ -78,7 +92,7 @@ const AuthPage = () => {
       }
     } catch (err: any) {
       console.error("Erreur de vérification:", err);
-      setError(err.errors?.[0]?.longMessage || "Code de vérification invalide.");
+      setError(err.errors?.[0]?.longMessage || "Code invalide.");
     }
   };
 
@@ -87,173 +101,110 @@ const AuthPage = () => {
   }
 
   return (
-    <div className="max-w-4xl w-full mx-auto bg-zinc-900 bg-opacity-50 backdrop-filter backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row relative z-10">
-      <div id="clerk-captcha"></div>
-      <div className="p-8 flex-1">
-        <h1 className="text-2xl font-bold text-white text-center mb-6">Bienvenue</h1>
+    <div className="min-h-screen flex items-center justify-center bg-white p-6">
+      <div className="w-full max-w-md mx-auto flex flex-col gap-4">
+        <div className="bg-gradient-to-br from-purple-700 to-purple-800 text-white rounded-2xl shadow-2xl overflow-hidden">
+          <div className="p-6 lg:p-8">
+          
 
-        {pendingVerification ? (
-          <>
-            <p className="text-zinc-400 text-center mb-4">
-              Un code de vérification a été envoyé à {email}.
-            </p>
-            <Input
-              type="text"
-              placeholder="Code de vérification"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="bg-zinc-800 border-zinc-700 text-white mb-4"
-            />
-            {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
-            <Button
-              onClick={handleVerification}
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-black mb-4"
-            >
-              Vérifier
-            </Button>
-            <Button
-              onClick={() => setPendingVerification(false)}
-              variant="outline"
-              className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700"
-            >
-              Retour
-            </Button>
-          </>
-        ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-zinc-800">
-              <TabsTrigger value="login" className="text-white">Connexion</TabsTrigger>
-              <TabsTrigger value="signup" className="text-white">Inscription</TabsTrigger>
-            </TabsList>
+            <h1 className="text-2xl font-bold text-white mb-2 text-center anago-font">BIENVENUE</h1>
 
-            <TabsContent value="login">
-              <div className="space-y-4 mt-4">
+            <p className="text-purple-200 text-center mb-6 italic-text">Connectez-vous ou créez un compte pour accéder au tableau de bord.</p>
+
+            {pendingVerification ? (
+              <>
+                <p className="text-purple-200 mb-4 text-center">Un code a été envoyé à {email}.</p>
+
                 <Input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-zinc-800 border-zinc-700 text-white"
+                  type="text"
+                  placeholder="Code de vérification"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className="mb-4 bg-white text-black border-gray-200"
                 />
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Mot de passe"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-white"
-                  >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                  </button>
-                </div>
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                <Button
-                  onClick={handleEmailSignIn}
-                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-black"
-                >
-                  Se connecter avec Email
-                </Button>
-                <div className="text-center">
-                  <Button
-                    variant="link"
-                    onClick={() => setShowForgotPassword(true)}
-                    className="text-zinc-400 hover:text-white"
-                  >
-                    Mot de passe oublié ?
-                  </Button>
-                </div>
-              </div>
-            </TabsContent>
 
-            <TabsContent value="signup">
-              <div className="space-y-4 mt-4">
-                <div className="flex gap-4">
-                  <Input
-                    type="text"
-                    placeholder="Prénom"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white flex-1"
-                  />
-                  <Input
-                    type="text"
-                    placeholder="Nom"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white flex-1"
-                  />
-                </div>
-                <Input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-zinc-800 border-zinc-700 text-white"
-                />
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Mot de passe"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-white"
-                  >
-                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                  </button>
-                </div>
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                <PasswordStrengthMeter password={password} />
-                <Button
-                  onClick={handleSignUp}
-                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-black"
-                >
-                  S'inscrire
-                </Button>
-              </div>
-            </TabsContent>
-          </Tabs>
-        )}
+                {error && <p className="text-red-300 text-sm mb-4">{error}</p>}
 
-        {!pendingVerification && (
-          <>
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-zinc-700" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-zinc-900 px-2 text-zinc-400">Ou continuer avec</span>
-              </div>
-            </div>
-            {/*
-            <div className="flex flex-col gap-3">
-               Boutons de connexion OAuth 
-              <Button
-                onClick={() => signInWithOAuth("oauth_google")}
-                variant="secondary"
-                className="w-full text-black border-zinc-200 h-11"
-              >
-                <img src="/google.png" alt="Google" className="size-5 mr-2" />
-                Continuer avec Google
-              </Button>
-            </div>*/}
-          </>
-        )}
-      </div>
-      <div className="flex-1 hidden lg:block">
-        <AuthImagePattern
-          title="Welcome to customized fertilizers direction"
-          subtitle=""
-        />
+                <Button onClick={handleVerification} className="w-full bg-white text-purple-800 font-semibold mb-3">Vérifier</Button>
+                <Button onClick={() => setPendingVerification(false)} variant="outline" className="w-full border-white text-white">Retour</Button>
+              </>
+            ) : (
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <div className="flex justify-between">
+    <TabsList className="grid w-full grid-cols-2 bg-white p-1 rounded-full overflow-hidden">
+      <TabsTrigger value="login" className="text-black font-semibold data-[state=active]:bg-purple-100 data-[state=active]:text-purple-800">
+        Connexion
+      </TabsTrigger>
+      <TabsTrigger value="signup" className="text-black font-semibold data-[state=active]:bg-purple-100 data-[state=active]:text-purple-800">
+        Inscription
+      </TabsTrigger>
+    </TabsList>
+  </div>
+
+                <TabsContent value="login">
+                  <div className="space-y-4 mt-4">
+                    <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="bg-white text-black border-gray-200" />
+
+                    <div className="relative">
+                      <Input type={showPassword ? "text" : "password"} placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="bg-white text-black pr-12 border-gray-200" />
+                        <button
+                          type="button"
+                          aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-2 flex items-center justify-center px-2 rounded-md bg-white/90 text-purple-800 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        >
+                          {showPassword ? <FaEyeSlash /> : <FaEye />}
+                        </button>
+                    </div>
+
+                    {error && <p className="text-red-300 text-sm">{error}</p>}
+
+                    <Button onClick={handleEmailSignIn} className="w-full bg-white text-purple-800 font-semibold">Se connecter</Button>
+
+                    <div className="text-center">
+                      <Button variant="link" onClick={() => setShowForgotPassword(true)} className="text-purple-800 hover:text-dark-200">Mot de passe oublié ?</Button>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="signup">
+                  <div className="space-y-4 mt-4">
+                    <div className="flex gap-4">
+                      <Input type="text" placeholder="Prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="bg-white text-black border-gray-200 flex-1" />
+                      <Input type="text" placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} className="bg-white text-black border-gray-200 flex-1" />
+                    </div>
+
+                    <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="bg-white text-black border-gray-200" />
+
+                    <div className="relative">
+                      <Input type={showPassword ? "text" : "password"} placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} className="bg-white text-black pr-12 border-gray-200" />
+                        <button
+                          type="button"
+                          aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-2 flex items-center justify-center px-2 rounded-md bg-white/90 text-purple-800 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        >
+                          {showPassword ? <FaEyeSlash /> : <FaEye />}
+                        </button>
+                    </div>
+
+                    <Input type="text" placeholder="CIN" value={cin} onChange={(e) => setCin(e.target.value)} className="bg-white text-black border-gray-200" />
+                    <Input type="text" placeholder="Numéro de téléphone" value={phone} onChange={(e) => setPhone(e.target.value)} className="bg-white text-black border-gray-200" />
+                    <Input type="text" placeholder="RIB" value={rib} onChange={(e) => setRib(e.target.value)} className="bg-white text-black border-gray-200" />
+                    <Input type="text" placeholder="Role" value={role} onChange={(e) => setRole(e.target.value)} disabled className="bg-white text-black border-gray-200" />
+
+                    {error && <p className="text-red-300 text-sm">{error}</p>}
+                    <PasswordStrengthMeter password={password} />
+
+                    <Button onClick={handleSignUp} className="w-full bg-white text-purple-800 font-semibold">S'inscrire</Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
+
+            {!pendingVerification && <div className="relative my-6"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/30" /></div></div>}
+          </div>
+        </div>
       </div>
     </div>
   );
