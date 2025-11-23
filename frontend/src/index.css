@@ -1,11 +1,19 @@
+/* If you use Tailwind, enable the PostCSS 'tailwindcss' plugin so these @tailwind rules are processed.
+   If you don't use PostCSS/Tailwind, you can include a prebuilt Tailwind CSS or remove these lines
+   to avoid "Unknown at rule @tailwind" errors. */
+/* Fallback: import a compiled Tailwind build from CDN to prevent linter/build errors */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+@import url("https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css");
+@import url('https://fonts.googleapis.com/css2?family=Anago&display=swap');
+
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: #0f1724; /* default text color on white background */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -28,7 +36,9 @@ body {
   min-width: 320px;
   min-height: 100vh;
   display: block;
-  background-color: #f8f9fa; /* optional: better base color */
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 
@@ -67,4 +77,12 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+.anago-font {
+  font-family: 'Anago', sans-serif;
+}
+
+.italic-text {
+  font-style: italic;
 }
