@@ -21,9 +21,24 @@ build/
 npm-debug.log*
 
 # Python
-__pycache__/
+_pycache_/
 *.pyc
 
 #data
 /backend/app/data/sign_data/*
 !/backend/app/data/sign_data/.gitkeep
+
+/backend/app/data/cheques/cih/*
+!/backend/app/data/cheques/cih/.gitkeep
+
+/backend/app/data/cheques/TIJARI/*
+!/backend/app/data/cheques/TIJARI/.gitkeep
+
+/backend/app/data/cheques/BCP/*
+!/backend/app/data/cheques/BCP/.gitkeep
+
+/backend/app/data/annotation/*
+!/backend/app/data/annotation/.gitkeep
+
+/backend/runs/*
+!/backend/runs/.gitkeep
