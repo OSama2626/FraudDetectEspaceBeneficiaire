@@ -1,6 +1,8 @@
 faker
-pandas
-num2words
 imgkit
-playwright
+num2words
+pandas
 pillow
+playwright
+python-dotenv
+supabase

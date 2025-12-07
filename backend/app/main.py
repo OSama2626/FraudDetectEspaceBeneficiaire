@@ -1,14 +1,15 @@
-# backend/app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+from dotenv import load_dotenv # Needed for loading .env variables
+# Import all route modules needed for both features
+from app.routes import checks # Route for Beneficiary checks
+from app.routes import auth, users 
 
 # --- Chargement du .env (doit être appelé avant d'importer les modules qui lisent les variables) ---
 load_dotenv()
 
 # Imports de la logique de l'application
 from .core.db import create_db_and_tables
-from .routes import auth, users  # corrected: package is `routes`, not `routers`
 
 # --- Initialisation de l'App ---
 app = FastAPI()
@@ -22,19 +23,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Événement de démarrage ---
+# --- Événement de démarrage (From HEAD) ---
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
 
 # --- INCLURE LES ROUTEURS ---
-# Inclut toutes les routes définies dans auth.py avec leur préfixe
+# Include all routes defined in auth.py (Authentication)
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-# Inclut toutes les routes définies dans users.py
+# Include all routes defined in users.py (User management)
 app.include_router(users.router, prefix="/auth", tags=["Users"])
+# Include all routes defined in checks.py (Beneficiary Espace)
+app.include_router(checks.router, tags=["Checks"]) 
 
 
-# --- Route Publique (peut rester ici ou aller dans son propre routeur) ---
+# --- Route Publique ---
 @app.get("/")
 def read_root():
     return {"message": "Bienvenue sur l'API FraudDetect (Publique)"}
