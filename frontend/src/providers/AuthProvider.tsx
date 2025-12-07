@@ -15,6 +15,11 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const interceptor = apiClient.interceptors.request.use(async (config) => {
             const token = await getToken();
+            
+            // ============ AJOUTEZ CECI ============
+            console.log("Clerk Token:", token);
+            // ======================================
+
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }

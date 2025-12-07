@@ -6,6 +6,20 @@ interface AuthImagePatternProps {
 }
 
 const AuthImagePattern: React.FC<AuthImagePatternProps> = ({ title, subtitle }) => {
+<<<<<<< HEAD
+=======
+  const images = ["/cheque.jpg"];
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+>>>>>>> feature/auth
   return (
     <div className="hidden lg:flex items-center justify-center h-full w-full relative">
       {/* Decorative gradient background instead of an external image */}

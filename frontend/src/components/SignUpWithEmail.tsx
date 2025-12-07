@@ -94,6 +94,7 @@ const SignUpWithEmail = () => {
             onChange={(e) => setPassword(e.target.value)}
             className='bg-zinc-800 border-zinc-700 text-white placeholder-zinc-400'
           />
+          
           {error && <p className="text-red-500 text-sm text-center">{error}</p>}
           <Button onClick={handleSignUp} className='w-full bg-emerald-500 hover:bg-emerald-600 text-black'>
             S'inscrire
