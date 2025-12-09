@@ -1,30 +1,29 @@
+
 /*
-  The final merged CSS prioritizes the standard Tailwind setup from the beneficiary branch
-  and combines all necessary theme variables and custom fonts from the authentication branch.
+  This version ensures that all @import statements for fonts are placed 
+  BEFORE the @tailwind directives, which satisfies the CSS rule.
 */
 
-/* 1. Tailwind Setup and Animations */
-@import "tailwindcss";
-
-@plugin "tailwindcss-animate";
-@import "tw-animate-css";
-
-/* 2. Global Fonts */
+/* 1. Global Fonts (MUST BE FIRST) */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Anago&display=swap');
 
+/* 2. Tailwind Directives (MUST COME AFTER @import) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@custom-variant dark (&:is(.dark *));
-
-/* 3. Base Tailwind Layers (Applying background/foreground colors) */
+/* 3. Base Tailwind Layers (Applying background/foreground colors) 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
+*/
+
 
 /* 4. Root Variables (Combined Theme & Fonts) */
 :root {
@@ -119,6 +118,3 @@
 .italic-text {
   font-style: italic;
 }
-
-/* Note: Generic element styles (h1, button, body setup) were removed/integrated into @layer base,
-   as they are typically handled by Tailwind/PostCSS in a modern setup. */

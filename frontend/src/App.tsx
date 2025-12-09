@@ -5,7 +5,6 @@ import { AuthenticateWithRedirectCallback, useUser } from "@clerk/clerk-react";
 // --- AUTHENTICATION IMPORTS ---
 import AuthPage from './pages/auth/AuthPage';
 import AuthCallbackPage from './pages/auth-callback/AuthCallbackPage';
-import ProfilePage from './pages/profile/ProfilePage';
 import SignUpWithEmail from "./components/SignUpWithEmail";
 import FloatingShape from "./components/FloatingShape";
 
@@ -63,7 +62,6 @@ function App() {
           
           {/* --- 2. PROTECTED BENEFICIARY ROUTES --- */}
           <Route element={<ProtectedRoute />}>
-              <Route path="/profile" element={<ProfilePage />} />
               <Route path="/beneficiary" element={<BeneficiaryLayout />}>
                   <Route index element={<Dashboard />} />
                   <Route path="checks" element={<CheckList />} />

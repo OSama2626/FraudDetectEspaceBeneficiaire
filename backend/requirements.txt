@@ -6,3 +6,7 @@ pillow
 playwright
 python-dotenv
 supabase
+clerk-backend-api
+fastapi
+uvicorn
+sqlalchemy

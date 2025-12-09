@@ -4,6 +4,10 @@ from dotenv import load_dotenv # Needed for loading .env variables
 # Import all route modules needed for both features
 from app.routes import checks # Route for Beneficiary checks
 from app.routes import auth, users 
+from app.routes import admin, webhooks
+from app.routes import cheques  # Real cheques from Supabase
+
+
 
 # --- Chargement du .env (doit être appelé avant d'importer les modules qui lisent les variables) ---
 load_dotenv()
@@ -34,8 +38,16 @@ app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 # Include all routes defined in users.py (User management)
 app.include_router(users.router, prefix="/auth", tags=["Users"])
 # Include all routes defined in checks.py (Beneficiary Espace)
-app.include_router(checks.router, tags=["Checks"]) 
+app.include_router(checks.router, tags=["Checks"])
 
+# Include cheques routes (real data from Supabase)
+app.include_router(cheques.router, prefix="/cheques", tags=["Cheques"])
+
+# Include Clerk webhook handler
+app.include_router(webhooks.router, prefix="/webhooks")
+
+# Include admin helpers
+app.include_router(admin.router)
 
 # --- Route Publique ---
 @app.get("/")
