@@ -1,11 +1,11 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Loader } from 'lucide-react';
 import { useBeneficiary } from '../BeneficiaryContext';
 
 const getStatusBadge = (statut: string) => {
-  const configs = {
+  const configs: Record<string, { color: string; icon: typeof Clock; label: string }> = {
     en_cours: { color: 'bg-blue-100 text-blue-800', icon: Clock, label: 'En cours' },
     approuve: { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Approuvé' },
     rejete: { color: 'bg-red-100 text-red-800', icon: XCircle, label: 'Rejeté' },
@@ -22,7 +22,31 @@ const getStatusBadge = (statut: string) => {
 };
 
 const CheckHistory = () => {
-  const { checks } = useBeneficiary();
+  const { checks, loading, error } = useBeneficiary();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-500 text-center py-8">
+        {error}
+      </div>
+    );
+  }
+
+  if (checks.length === 0) {
+    return (
+      <div className="text-gray-500 text-center py-8">
+        Aucun chèque dans l'historique
+      </div>
+    );
+  }
 
   return (
     <Table>

@@ -7,6 +7,21 @@ from ..core.db import get_db
 from ..utils.auth import get_current_user
 from ..models.user import User, UserRole  # Assurez-vous d'importer UserRole
 from ..schemas.user import UserSync       # Le schéma mis à jour (sans 'role')
+from ..services.clerk_sync_service import upsert_clerk_user
+
+
+def _normalize_role(value):
+    if not value:
+        return "BENEFICIAIRE"
+    lookup = {
+        "bénéficiaire": "BENEFICIAIRE",
+        "beneficiaire": "BENEFICIAIRE",
+        "beneficiary": "BENEFICIAIRE",
+        "agent": "AGENT",
+        "admin": "ADMIN",
+    }
+    key = str(value).strip().lower()
+    return lookup.get(key, "BENEFICIAIRE")
 
 router = APIRouter()
 
@@ -72,6 +87,29 @@ async def auth_callback(
             user_role_to_return = UserRole.BENEFICIAIRE # On définit le nouveau rôle
 
         db.commit()
+
+        # --- Synchronisation Supabase (table "users") ---
+        role_value_raw = (
+            user_role_to_return.value
+            if hasattr(user_role_to_return, "value")
+            else user_role_to_return
+        ) or "BENEFICIAIRE"
+        role_value = _normalize_role(role_value_raw)
+
+        # Limit payload to columns we expect in Supabase `users` table; include role (non-nullable)
+        supabase_payload = {
+            "clerk_id": clerk_id,
+            "email": user_data.email,
+            "first_name": user_data.firstName,
+            "last_name": user_data.lastName,
+            "image_url": user_data.imageUrl,
+            "role": role_value,
+        }
+
+        # Avoid overwriting existing Supabase columns with nulls
+        sanitized_payload = {k: v for k, v in supabase_payload.items() if v is not None}
+        upsert_clerk_user(sanitized_payload)
+
         return {
             "status": "success",
             "message": "Utilisateur synchronisé",

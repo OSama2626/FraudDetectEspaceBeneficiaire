@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import React from "react";
 
 interface AuthImagePatternProps {
@@ -6,8 +7,6 @@ interface AuthImagePatternProps {
 }
 
 const AuthImagePattern: React.FC<AuthImagePatternProps> = ({ title, subtitle }) => {
-<<<<<<< HEAD
-=======
   const images = ["/cheque.jpg"];
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -19,26 +18,19 @@ const AuthImagePattern: React.FC<AuthImagePatternProps> = ({ title, subtitle }) 
     return () => clearInterval(interval);
   }, [images.length]);
 
->>>>>>> feature/auth
   return (
     <div className="hidden lg:flex items-center justify-center h-full w-full relative">
-      {/* Decorative gradient background instead of an external image */}
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-700 via-sky-700 to-slate-900" />
 
-      {/* subtle decorative shapes */}
-      <svg className="absolute -left-20 -top-20 opacity-20" width="420" height="420" viewBox="0 0 420 420" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-        <defs>
-          <linearGradient id="g1" x1="0" x2="1">
-            <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.4" />
-          </linearGradient>
-        </defs>
-        <circle cx="210" cy="210" r="140" fill="url(#g1)" />
-      </svg>
+      <img
+        src={images[currentIndex]}
+        alt="background"
+        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+      />
 
-      <div className="relative max-w-md text-left flex flex-col justify-end h-full pb-12 px-8 w-full">
-        <h2 className="text-3xl font-extrabold mb-3 text-white drop-shadow">{title}</h2>
-        <p className="text-zinc-300">{subtitle}</p>
+
+      <div className="relative max-w-md text-center flex flex-col justify-end h-full pb-8 bg-opacity-50 w-full">
+        <h2 className="text-2xl font-bold mb-4 text-white">{title}</h2>
+        <p className="text-gray-400">{subtitle}</p>
       </div>
     </div>
   );
