@@ -16,25 +16,12 @@ BANK_ID_TO_CODE = {v: k for k, v in BANK_CODE_TO_ID.items()}
 
 
 def get_bank_id_from_code(bank_code: str) -> int:
-    """
-    Récupère l'ID de la banque à partir du code de banque.
-    
-    Args:
-        bank_code: Code de banque (ex: "230", "007", "145")
-    
-    Returns:
-        int: ID de la banque dans la base de données
-        
-    Raises:
-        ValueError: Si le code de banque n'est pas reconnu
-    """
-    bank_code = str(bank_code).strip()
-    
-    if bank_code not in BANK_CODE_TO_ID:
-        available = ", ".join(BANK_CODE_TO_ID.keys())
-        raise ValueError(f"Code de banque '{bank_code}' non reconnu. Codes disponibles: {available}")
-    
-    return BANK_CODE_TO_ID[bank_code]
+    code_str = str(bank_code).strip()
+    if code_str not in BANK_CODE_TO_ID:
+        # On log l'erreur ici pour être sûr
+        print(f"DEBUG: Code banque '{code_str}' introuvable dans {list(BANK_CODE_TO_ID.keys())}")
+        raise ValueError(f"Code banque '{code_str}' non reconnu.")
+    return BANK_CODE_TO_ID[code_str]
 
 
 def get_bank_code_from_id(bank_id: int) -> str:

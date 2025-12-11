@@ -7,7 +7,7 @@ import PasswordStrengthMeter from "../../components/PasswordStrengthMeter";
 import AuthImagePattern from "../../components/AuthImagePattern";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import ForgotPassword from "../../components/ForgotPassword"; 
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader2, Building2 } from "lucide-react"; // Ajout de l'icône Building2
 import { useNavigate } from "react-router-dom";
 
 const AuthPage = () => {
@@ -26,6 +26,7 @@ const AuthPage = () => {
   const [lastName, setLastName] = useState("");
   const [cin, setCin] = useState("");
   const [rib, setRib] = useState("");
+  // SUPPRIMÉ : const [selectedBank, setSelectedBank] = useState(""); 
 
   const [activeTab, setActiveTab] = useState("login");
   
@@ -54,9 +55,12 @@ const AuthPage = () => {
     );
   }
 
-  // --- FONCTIONS DE VALIDATION ---
+  // --- FONCTIONS DE VALIDATION & UTILITAIRES ---
   
-  const getRIBBankName = (bankCode: string) => {
+  // Fonction pour afficher le nom de la banque à l'utilisateur
+  const getRIBBankName = (ribValue: string) => {
+    if (ribValue.length < 3) return null;
+    const bankCode = ribValue.substring(0, 3);
     const bankMap: { [key: string]: string } = {
       "230": "CIH Banque",
       "007": "Attijariwafa Banque",
@@ -66,25 +70,24 @@ const AuthPage = () => {
   };
   
   const validateCIN = (cinValue: string) => {
-    // Regex : Commence par 1 ou 2 lettres (A-Z), suivies de 4 à 8 chiffres
     const cinRegex = /^[A-Z]{1,2}[0-9]{4,8}$/i; 
     return cinRegex.test(cinValue);
   };
 
   const validateRIB = (ribValue: string) => {
-    // 1. Longueur et contenu (24 chiffres)
+    // 1. Longueur (24 chiffres)
     if (!/^\d{24}$/.test(ribValue)) {
       return { valid: false, msg: "Le RIB doit contenir exactement 24 chiffres." };
     }
 
     // 2. Vérification du Code Banque (3 premiers chiffres)
     const bankCode = ribValue.substring(0, 3);
-    const allowedBanks = ['007', '145', '230']; // 007=Attijari, 230=CIH, 145=Autre
+    const allowedBanks = ['007', '145', '230']; 
     
     if (!allowedBanks.includes(bankCode)) {
       return { 
         valid: false, 
-        msg: `Banque non supportée (Code: ${bankCode}). Seuls les codes 007, 230 et 145 sont acceptés.` 
+        msg: `Banque non supportée (Code: ${bankCode}). Seuls CIH (230), Attijari (007) et BP (145) sont acceptés.` 
       };
     }
 
@@ -137,7 +140,7 @@ const AuthPage = () => {
     }
   };
 
-  // --- LOGIQUE INSCRIPTION AVEC VALIDATIONS ---
+  // --- LOGIQUE INSCRIPTION AVEC DÉTECTION AUTO ---
   const handleSignUp = async () => {
     // 1. Validations de base
     if (!firstName.trim()) { setError("Le Prénom est obligatoire"); return; }
@@ -162,9 +165,10 @@ const AuthPage = () => {
     setError(null);
 
     try {
-      // Extraire automatiquement le code banque du RIB (3 premiers chiffres)
-      const bankCode = rib.substring(0, 3);
-      const userData = { cin: cin.toUpperCase(), rib, bank_code: bankCode }; // Extraire automatiquement du RIB
+      // --- CORRECTION ICI : Extraction automatique ---
+      const detectedBankCode = rib.substring(0, 3);
+      
+      const userData = { cin: cin.toUpperCase(), rib, bank_code: detectedBankCode }; 
       localStorage.setItem('userRegistrationData', JSON.stringify(userData));
 
       await signUp.create({
@@ -217,6 +221,7 @@ const AuthPage = () => {
 
         {verifying2FA ? (
            <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+             {/* ... (Bloc 2FA inchangé) ... */}
              <div className="flex flex-col items-center mb-6">
                 <div className="h-16 w-16 bg-cyan-500/10 rounded-full flex items-center justify-center mb-4 ring-1 ring-cyan-500/50">
                     <ShieldCheck className="h-8 w-8 text-cyan-400" />
@@ -249,6 +254,7 @@ const AuthPage = () => {
         ) 
         : pendingVerification ? (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+            {/* ... (Bloc Vérification Email inchangé) ... */}
             <h2 className="text-xl font-semibold text-white text-center mb-4">Vérification Email</h2>
             <p className="text-zinc-400 text-center mb-6 text-sm">
               Un code de vérification a été envoyé à <span className="text-cyan-400">{email}</span>.
@@ -278,6 +284,7 @@ const AuthPage = () => {
             </TabsList>
 
             <TabsContent value="login" className="animate-in fade-in slide-in-from-left-4 duration-300">
+              {/* ... (Contenu Login inchangé) ... */}
               <div className="space-y-4">
                 <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} onKeyDown={(e) => e.key === "Enter" && handleEmailSignIn()} />
                 <div className="relative">
@@ -327,13 +334,24 @@ const AuthPage = () => {
                     value={rib} 
                     onChange={(e) => setRib(e.target.value)} 
                     className={inputClass} 
-                    maxLength={24} // Limite la saisie à 24
+                    maxLength={24}
                   />
                 </div>
                 
-                {rib && (
-                  <div className="text-sm text-zinc-400 p-2 bg-zinc-800/50 rounded border border-zinc-700">
-                    Banque détectée: <span className="text-cyan-400 font-semibold">{getRIBBankName(rib.substring(0, 3))}</span>
+                {/* --- MODIFICATION ICI : Affichage auto de la banque au lieu du Select --- */}
+                {rib.length >= 3 && (
+                  <div className={`text-sm p-3 rounded border flex items-center gap-2 transition-all duration-300 ${
+                    getRIBBankName(rib) !== "Banque inconnue" 
+                      ? "bg-cyan-950/30 border-cyan-800 text-cyan-400" 
+                      : "bg-red-900/10 border-red-900/20 text-red-400"
+                  }`}>
+                    <Building2 className="h-4 w-4" />
+                    <span>
+                      {getRIBBankName(rib) === "Banque inconnue" 
+                        ? "Banque non reconnue (Codes supportés: 230, 007, 145)" 
+                        : `Banque détectée : ${getRIBBankName(rib)}`
+                      }
+                    </span>
                   </div>
                 )}
                 
