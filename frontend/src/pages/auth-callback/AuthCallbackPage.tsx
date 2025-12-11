@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { apiClient } from "@/lib/axios";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { Loader } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 const AuthCallbackPage = () => {
@@ -10,12 +10,6 @@ const AuthCallbackPage = () => {
   const { getToken } = useAuth();
   const navigate = useNavigate();
   const syncAttempted = useRef(false);
-  
-  // Récupération des données d'inscription (pour les bénéficiaires qui viennent de s'inscrire)
-  const [userData] = useState(() => {
-    const saved = localStorage.getItem('userRegistrationData');
-    return saved ? JSON.parse(saved) : null;
-  });
 
   useEffect(() => {
     const syncUser = async () => {
@@ -25,6 +19,12 @@ const AuthCallbackPage = () => {
       try {
         syncAttempted.current = true;
         const token = await getToken();
+        
+        // Récupération des données d'inscription depuis localStorage
+        const saved = localStorage.getItem('userRegistrationData');
+        const userData = saved ? JSON.parse(saved) : null;
+        
+        console.log("userData from localStorage:", userData);
 
         // 2. Build the payload for backend sync
         const basePayload = {
@@ -39,11 +39,13 @@ const AuthCallbackPage = () => {
           ...basePayload,
           cin: userData.cin,
           rib: userData.rib,
+          bank_code: userData.bank_code || null,
         } : {
           // Existing user (CIN/RIB are sent as null, backend should fetch them)
           ...basePayload,
           cin: null,
           rib: null,
+          bank_code: null,
         };
 
         console.log("Synchronisation avec le backend...");
@@ -112,7 +114,7 @@ const AuthCallbackPage = () => {
         navigate("/auth", { replace: true });
     }
     
-  }, [isLoaded, user, getToken, navigate, userData]);
+  }, [isLoaded, user, getToken, navigate]);
 
   return (
     <div className="h-screen w-full bg-zinc-950 flex items-center justify-center">

@@ -41,6 +41,10 @@ async def auth_callback(
     if not clerk_id:
         raise HTTPException(status_code=401, detail="Utilisateur non valide depuis le token")
 
+    # DEBUG: Log des données reçues
+    print(f"DEBUG /auth/callback - user_data: {user_data}")
+    print(f"DEBUG /auth/callback - firstName: {user_data.firstName}, lastName: {user_data.lastName}, email: {user_data.email}, cin: {user_data.cin}, rib: {user_data.rib}, bank_code: {user_data.bank_code}")
+
     try:
         # 1. Vérifier si l'utilisateur existe en base locale
         db_user = db.query(User).filter(User.clerk_id == clerk_id).first()
@@ -77,6 +81,15 @@ async def auth_callback(
             if db.query(User).filter(User.rib == user_data.rib).first():
                 raise HTTPException(status_code=400, detail="Ce RIB est déjà utilisé")
 
+            # Conversion du code banque en bank_id
+            bank_id_value = None
+            if user_data.bank_code:
+                from ..utils.bank_codes import get_bank_id_from_code
+                try:
+                    bank_id_value = get_bank_id_from_code(user_data.bank_code)
+                except ValueError as e:
+                    raise HTTPException(status_code=400, detail=str(e))
+
             new_user = User(
                 clerk_id=clerk_id,
                 email=user_data.email,
@@ -85,12 +98,13 @@ async def auth_callback(
                 image_url=user_data.imageUrl,
                 cin=user_data.cin,
                 rib=user_data.rib,
+                bank_id=bank_id_value,  # Utiliser le bank_id convertit
                 role=UserRole.BENEFICIAIRE, # Par défaut
                 must_reset_password=False
             )
             db.add(new_user)
             user_role_to_return = UserRole.BENEFICIAIRE
-            print(f"Nouvel utilisateur créé : {clerk_id}")
+            print(f"Nouvel utilisateur créé : {clerk_id} avec banque ID: {bank_id_value}")
 
         db.commit()
 
