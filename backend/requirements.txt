@@ -4,6 +4,21 @@ num2words
 pandas
 pillow
 playwright
+pillow
+opencv-python
+numpy
+kagglehub
+openpyxl
+ultralytics
+opencv-python-headless # OpenCV sans interface graphique
+easyocr
+torch
+torchvision
+passlib
+bcrypt
+python-jose
+cryptography
+email-validator
 python-dotenv
 supabase
 clerk-backend-api

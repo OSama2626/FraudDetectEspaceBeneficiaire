@@ -1,12 +1,15 @@
 # backend/app/routes/cheques.py
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 import uuid
 
 from ..utils.auth import get_current_user
+from ..core.db import get_db
 from ..core.config import supabase
+from ..models.user import User
 
 router = APIRouter()
 
@@ -39,28 +42,57 @@ class ChequeCreateResponse(BaseModel):
 
 @router.post("/upload", response_model=ChequeCreateResponse)
 async def upload_cheque(
-    banque_name: str = Form(...),
+    banque_name: str = Form(None),
+    banque_code: str = Form(None),
     file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Upload a new cheque"""
+    """Upload a new cheque
+    
+    Args:
+        banque_name: Nom de la banque (ex: "CIH Banque") - optionnel
+        banque_code: Code de banque (ex: "230", "007", "145") - optionnel
+        file: Fichier image du chèque
+        
+    Note: Fournir soit banque_name soit banque_code
+    """
     clerk_id = current_user.get("user_id")
     if not clerk_id:
         raise HTTPException(status_code=401, detail="User not authenticated")
 
-    # Get the user's internal ID
-    user_response = supabase.table("users").select("id").eq("clerk_id", clerk_id).single().execute()
-    if not user_response.data:
-        raise HTTPException(status_code=404, detail="User not found")
+    # Récupère ou crée l'utilisateur en base locale
+    user = db.query(User).filter(User.clerk_id == clerk_id).first()
+    if not user:
+        from ..models.user import UserRole
+        user = User(
+            clerk_id=clerk_id,
+            email=current_user.get("email", ""),
+            role=UserRole.BENEFICIAIRE,
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
     
-    user_id = user_response.data["id"]
+    user_id = user.id
 
-    # Get the bank ID from bank name
-    bank_response = supabase.table("banks").select("id").eq("name", banque_name).single().execute()
-    if not bank_response.data:
-        raise HTTPException(status_code=400, detail=f"Bank '{banque_name}' not found")
-    
-    bank_id = bank_response.data["id"]
+    # Déterminer le bank_id à partir du code ou du nom
+    if banque_code:
+        # Si un code de banque est fourni, l'utiliser
+        from ..utils.bank_codes import get_bank_id_from_code
+        try:
+            bank_id = get_bank_id_from_code(banque_code)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    elif banque_name:
+        # Sinon, utiliser le nom de la banque
+        bank_response = supabase.table("banks").select("id").eq("name", banque_name).execute()
+        if not bank_response.data or len(bank_response.data) == 0:
+            raise HTTPException(status_code=400, detail=f"Bank '{banque_name}' not found")
+        bank_id = bank_response.data[0]["id"]
+    else:
+        raise HTTPException(status_code=400, detail="Fournir soit 'banque_name' soit 'banque_code'")
 
     # Upload image to Supabase Storage
     try:
@@ -128,11 +160,17 @@ async def get_my_cheques(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=401, detail="User not authenticated")
 
     # Get the user's internal ID from clerk_id
-    user_response = supabase.table("users").select("id").eq("clerk_id", clerk_id).single().execute()
-    if not user_response.data:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    user_id = user_response.data["id"]
+    try:
+        user_response = supabase.table("users").select("id").eq("clerk_id", clerk_id).execute()
+        if not user_response.data or len(user_response.data) == 0:
+            # User exists in Clerk but not in Supabase users table yet
+            # Return empty list for now
+            return []
+        user_id = user_response.data[0]["id"]
+    except Exception as e:
+        print(f"Erreur lors de la recherche utilisateur Supabase: {e}")
+        # Return empty list if user not found in Supabase
+        return []
 
     # Get cheques with bank name and details
     cheques_response = supabase.table("cheques")\
@@ -168,7 +206,7 @@ async def get_my_cheques(current_user: dict = Depends(get_current_user)):
     return result
 
 
-@router.get("/stats", response_model=ChequeStats)
+@router.get("/stats")
 async def get_cheque_stats(current_user: dict = Depends(get_current_user)):
     """Get cheque statistics for the current beneficiary"""
     clerk_id = current_user.get("user_id")
@@ -176,11 +214,15 @@ async def get_cheque_stats(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=401, detail="User not authenticated")
 
     # Get the user's internal ID
-    user_response = supabase.table("users").select("id").eq("clerk_id", clerk_id).single().execute()
-    if not user_response.data:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    user_id = user_response.data["id"]
+    try:
+        user_response = supabase.table("users").select("id").eq("clerk_id", clerk_id).execute()
+        if not user_response.data or len(user_response.data) == 0:
+            # User exists in Clerk but not in Supabase users table yet
+            return {"pending": 0, "approved": 0, "rejected": 0}
+        user_id = user_response.data[0]["id"]
+    except Exception as e:
+        print(f"Erreur lors de la recherche utilisateur: {e}")
+        return {"pending": 0, "approved": 0, "rejected": 0}
 
     # Count by status
     pending_response = supabase.table("cheques")\
@@ -208,7 +250,7 @@ async def get_cheque_stats(current_user: dict = Depends(get_current_user)):
     }
 
 
-@router.get("/{cheque_id}", response_model=ChequeResponse)
+@router.get("/{cheque_id}")
 async def get_cheque_detail(cheque_id: int, current_user: dict = Depends(get_current_user)):
     """Get a specific cheque by ID"""
     clerk_id = current_user.get("user_id")
@@ -216,11 +258,16 @@ async def get_cheque_detail(cheque_id: int, current_user: dict = Depends(get_cur
         raise HTTPException(status_code=401, detail="User not authenticated")
 
     # Get user ID
-    user_response = supabase.table("users").select("id").eq("clerk_id", clerk_id).single().execute()
-    if not user_response.data:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    user_id = user_response.data["id"]
+    try:
+        user_response = supabase.table("users").select("id").eq("clerk_id", clerk_id).execute()
+        if not user_response.data or len(user_response.data) == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        user_id = user_response.data[0]["id"]
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Erreur lors de la recherche utilisateur: {e}")
+        raise HTTPException(status_code=500, detail="Database error")
 
     # Get the cheque
     cheque_response = supabase.table("cheques")\

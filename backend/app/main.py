@@ -1,55 +1,71 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv # Needed for loading .env variables
-# Import all route modules needed for both features
-from app.routes import checks # Route for Beneficiary checks
-from app.routes import auth, users 
-from app.routes import admin, webhooks
-from app.routes import cheques  # Real cheques from Supabase
+from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
 
-
-
-# --- Chargement du .env (doit être appelé avant d'importer les modules qui lisent les variables) ---
+# --- Chargement du .env ---
 load_dotenv()
 
 # Imports de la logique de l'application
-from .core.db import create_db_and_tables
+from app.core.db import create_db_and_tables
+
+# --- IMPORT UNIFIÉ DES ROUTES ---
+# On combine les routes de votre travail (Admin/Agent) et de l'autre branche (Bénéficiaire/Webhooks)
+from app.routes import auth, users, agents, admin, checks, cheques, webhooks, ws
 
 # --- Initialisation de l'App ---
 app = FastAPI()
 
+# --- Servir le dossier public (Images de chèques) ---
+# Nécessaire pour que le frontend puisse afficher les images stockées dans backend/public
+public_path = os.path.join(os.getcwd(), "public")
+if os.path.exists(public_path):
+    app.mount("/public", StaticFiles(directory=public_path), name="public")
+else:
+    print("⚠️ Attention : Le dossier 'public' n'existe pas. Les images ne seront pas servies.")
+
 # --- Ajout du Middleware CORS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174"], # Supporte les deux ports fréquents
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- Événement de démarrage (From HEAD) ---
+# --- Événement de démarrage ---
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
 
 # --- INCLURE LES ROUTEURS ---
-# Include all routes defined in auth.py (Authentication)
-app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-# Include all routes defined in users.py (User management)
-app.include_router(users.router, prefix="/auth", tags=["Users"])
-# Include all routes defined in checks.py (Beneficiary Espace)
-app.include_router(checks.router, tags=["Checks"])
 
-# Include cheques routes (real data from Supabase)
+# 1. Authentification
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+
+# 2. Gestion des Utilisateurs (Correction du préfixe appliquée)
+app.include_router(users.router, prefix="/users", tags=["Users"])
+
+# 3. Espace Admin (Votre fonctionnalité)
+app.include_router(admin.router, prefix="/admin", tags=["Admin Management"])
+
+# 4. Espace Agent (Votre fonctionnalité)
+app.include_router(agents.router, prefix="/agents", tags=["Agents Management"])
+
+# 5. Espace Bénéficiaire (Fonctionnalité fusionnée)
+# Permet la gestion des remises de chèques
+app.include_router(checks.router, tags=["Checks"]) 
+
+# 6. Données Chèques Réels (Supabase)
 app.include_router(cheques.router, prefix="/cheques", tags=["Cheques"])
 
-# Include Clerk webhook handler
-app.include_router(webhooks.router, prefix="/webhooks")
+# 7. Webhooks (Pour la synchro Clerk automatique)
+app.include_router(webhooks.router, prefix="/webhooks", tags=["Webhooks"])
 
-# Include admin helpers
-app.include_router(admin.router)
-
+# 8. WebSocket (Notifications en temps réel)
+app.include_router(ws.router, tags=["Websockets"])
 # --- Route Publique ---
 @app.get("/")
 def read_root():
-    return {"message": "Bienvenue sur l'API FraudDetect (Publique)"}
+    return {"message": "Bienvenue sur l'API FraudDetect (Version Unifiée)"}

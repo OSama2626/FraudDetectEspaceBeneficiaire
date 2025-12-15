@@ -1,26 +1,19 @@
-# backend/app/routers/auth.py
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
-# Imports depuis notre application
 from ..core.db import get_db
 from ..utils.auth import get_current_user
-from ..models.user import User, UserRole  # Assurez-vous d'importer UserRole
-from ..schemas.user import UserSync       # Le schéma mis à jour (sans 'role')
+from ..models.user import User, UserRole
+from ..schemas.user import UserSync
 from ..services.clerk_sync_service import upsert_clerk_user
+from ..utils.bank_codes import get_bank_id_from_code
 
-
+# Fonction utilitaire pour normaliser le rôle
 def _normalize_role(value):
-    if not value:
-        return "BENEFICIAIRE"
-    lookup = {
-        "bénéficiaire": "BENEFICIAIRE",
-        "beneficiaire": "BENEFICIAIRE",
-        "beneficiary": "BENEFICIAIRE",
-        "agent": "AGENT",
-        "admin": "ADMIN",
-    }
-    key = str(value).strip().lower()
+    if not value: return "BENEFICIAIRE"
+    lookup = {"bénéficiaire": "BENEFICIAIRE", "agent": "AGENT", "admin": "ADMIN"}
+    key = str(value.value).strip().lower() if hasattr(value, "value") else str(value).strip().lower()
     return lookup.get(key, "BENEFICIAIRE")
 
 router = APIRouter()
@@ -34,43 +27,70 @@ async def auth_callback(
 ):
     clerk_id = current_user.get("user_id")
     if not clerk_id:
-        raise HTTPException(status_code=401, detail="Utilisateur non valide depuis le token")
+        raise HTTPException(status_code=401, detail="Token invalide")
+
+    print(f"🔍 DEBUG CALLBACK - Reçu: CIN={user_data.cin}, RIB={user_data.rib}, BankCode={user_data.bank_code}")
 
     try:
-        # 1. Vérifier si l'utilisateur existe
         db_user = db.query(User).filter(User.clerk_id == clerk_id).first()
         
         user_role_to_return = None
+        must_reset = False
+        bank_id = None
 
         if db_user:
-            # 2. L'utilisateur existe, on le MET À JOUR (infos de base)
+            # --- MISE À JOUR ---
+            # Vérifications d'unicité en cas de changement
+            if user_data.cin and user_data.cin != db_user.cin:
+                if db.query(User).filter(User.cin == user_data.cin).first():
+                    raise HTTPException(status_code=400, detail="Ce CIN est déjà utilisé par un autre compte.")
+            
             db_user.first_name = user_data.firstName
             db_user.last_name = user_data.lastName
             db_user.image_url = user_data.imageUrl
             db_user.email = user_data.email
             
-            # On ne met à jour ni CIN, ni RIB, ni Rôle pour un utilisateur existant
-            # Ces infos sont fixées à la création
-            print(f"Utilisateur mis à jour : {clerk_id}")
-            user_role_to_return = db_user.role # On récupère le rôle existant
-        
-        else:
-            # 3. L'utilisateur n'existe pas, on le CRÉE
+            # Remplissage des données manquantes (cas du "Fantôme")
+            if user_data.cin and not db_user.cin:
+                db_user.cin = user_data.cin
             
-            # Validation des données supplémentaires (POUR LA CRÉATION)
-            if not user_data.cin:
-                raise HTTPException(status_code=400, detail="Le CIN est obligatoire")
-            if not user_data.rib:
-                raise HTTPException(status_code=400, detail="Le RIB est obligatoire")
+            if user_data.rib and not db_user.rib:
+                db_user.rib = user_data.rib
+            
+            # Gestion Banque
+            if user_data.bank_code and not db_user.bank_id:
+                try:
+                    # On force la conversion int -> int pour être sûr
+                    bid = get_bank_id_from_code(user_data.bank_code)
+                    db_user.bank_id = bid
+                    print(f"🏦 Banque mise à jour pour {clerk_id}: Code {user_data.bank_code} -> ID {bid}")
+                except ValueError as e:
+                    print(f"⚠️ Erreur Banque (Update): {e}")
 
-            # Vérifier si le CIN ou RIB existe déjà
-            existing_cin = db.query(User).filter(User.cin == user_data.cin).first()
-            if existing_cin:
-                raise HTTPException(status_code=400, detail="Ce CIN est déjà utilisé")
+            user_role_to_return = db_user.role
+            must_reset = db_user.must_reset_password
+            bank_id = db_user.bank_id
+            
+        else:
+            # --- CRÉATION ---
+            if not user_data.cin or not user_data.rib:
+                raise HTTPException(status_code=400, detail="CIN et RIB sont obligatoires pour l'inscription.")
 
-            existing_rib = db.query(User).filter(User.rib == user_data.rib).first()
-            if existing_rib:
-                raise HTTPException(status_code=400, detail="Ce RIB est déjà utilisé")
+            if db.query(User).filter(User.cin == user_data.cin).first():
+                raise HTTPException(status_code=400, detail="Ce CIN est déjà utilisé.")
+
+            # Gestion Banque
+            bank_id_value = None
+            if user_data.bank_code:
+                try:
+                    bank_id_value = get_bank_id_from_code(user_data.bank_code)
+                    print(f"🏦 Banque trouvée pour création: Code '{user_data.bank_code}' -> ID {bank_id_value}")
+                except ValueError as e:
+                    # IMPORTANT: On ne bloque pas l'inscription, mais on log l'erreur
+                    print(f"❌ ERREUR CRITIQUE BANQUE: {e}")
+                    # Optionnel: raise HTTPException(400, detail="Banque non reconnue") 
+            else:
+                print("⚠️ Aucun code banque fourni dans le payload user_data")
 
             new_user = User(
                 clerk_id=clerk_id,
@@ -80,46 +100,47 @@ async def auth_callback(
                 image_url=user_data.imageUrl,
                 cin=user_data.cin,
                 rib=user_data.rib,
-                role=UserRole.BENEFICIAIRE  # <-- RÔLE DÉFINI PAR DÉFAUT ICI
+                bank_id=bank_id_value,
+                role=UserRole.BENEFICIAIRE,
+                must_reset_password=False
             )
             db.add(new_user)
-            print(f"Nouvel utilisateur créé : {clerk_id}")
-            user_role_to_return = UserRole.BENEFICIAIRE # On définit le nouveau rôle
+            user_role_to_return = UserRole.BENEFICIAIRE
+            bank_id = bank_id_value # Pour le retour
 
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError as e:
+            db.rollback()
+            err_msg = str(e.orig)
+            if "ix_users_cin" in err_msg:
+                raise HTTPException(400, "Ce CIN existe déjà (doublon).")
+            elif "ix_users_rib" in err_msg:
+                raise HTTPException(400, "Ce RIB existe déjà (doublon).")
+            raise HTTPException(400, "Erreur de doublon (Données uniques requises).")
 
-        # --- Synchronisation Supabase (table "users") ---
-        role_value_raw = (
-            user_role_to_return.value
-            if hasattr(user_role_to_return, "value")
-            else user_role_to_return
-        ) or "BENEFICIAIRE"
-        role_value = _normalize_role(role_value_raw)
-
-        # Limit payload to columns we expect in Supabase `users` table; include role (non-nullable)
-        supabase_payload = {
-            "clerk_id": clerk_id,
-            "email": user_data.email,
-            "first_name": user_data.firstName,
-            "last_name": user_data.lastName,
-            "image_url": user_data.imageUrl,
-            "role": role_value,
-        }
-
-        # Avoid overwriting existing Supabase columns with nulls
-        sanitized_payload = {k: v for k, v in supabase_payload.items() if v is not None}
-        upsert_clerk_user(sanitized_payload)
+        # Sync Supabase (Code existant inchangé, simplifié ici)
+        try:
+            role_val = _normalize_role(user_role_to_return)
+            payload = {
+                "clerk_id": clerk_id, "email": user_data.email, "role": role_val,
+                "first_name": user_data.firstName, "last_name": user_data.lastName, "image_url": user_data.imageUrl
+            }
+            upsert_clerk_user({k:v for k,v in payload.items() if v})
+        except Exception as e:
+            print(f"⚠️ Erreur Sync Supabase: {e}")
 
         return {
             "status": "success",
-            "message": "Utilisateur synchronisé",
             "clerk_id": clerk_id,
-            "role": user_role_to_return # On retourne le rôle (nouveau ou existant)
+            "role": user_role_to_return,
+            "must_reset_password": must_reset,
+            "bank_id": bank_id
         }
 
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erreur SQLAlchemy: {e}")
-        raise HTTPException(status_code=500, detail=f"Erreur de base de données: {str(e)}")
+        print(f"🔥 Erreur Serveur Auth: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
