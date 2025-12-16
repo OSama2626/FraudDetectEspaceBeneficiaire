@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/axios';
 import { useAuth } from '@clerk/clerk-react';
+import { getBankThemeById, DEFAULT_THEME } from '@/config/bankThemes';
+import type { BankTheme } from '@/config/bankThemes';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 export interface Cheque {
   id: number;
@@ -31,6 +34,8 @@ interface BeneficiaryContextType {
   stats: ChequeStats;
   loading: boolean;
   error: string | null;
+  bankId: number | null;
+  theme: BankTheme;
   refreshChecks: () => Promise<void>;
   addCheck: (check: Partial<Cheque>) => void;
 }
@@ -43,6 +48,8 @@ const BeneficiaryContext = createContext<BeneficiaryContextType>({
   stats: defaultStats,
   loading: false,
   error: null,
+  bankId: null,
+  theme: DEFAULT_THEME,
   refreshChecks: async () => {},
   addCheck: () => {},
 });
@@ -70,6 +77,15 @@ export const BeneficiaryProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { getToken, isSignedIn } = useAuth();
+  const { bankId, rib } = useAuthStore();
+
+  // Calculer le thème basé sur le bankId
+  const theme = getBankThemeById(bankId);
+  
+  // Debug log
+  console.log('🏦 BeneficiaryContext - bankId:', bankId, 'rib:', rib, 'theme:', theme.name);
+
+  // Note: syncUserRole est déjà appelé dans AuthProvider, pas besoin de le refaire ici
 
   const fetchChecks = useCallback(async () => {
     if (!isSignedIn) return;
@@ -138,6 +154,8 @@ export const BeneficiaryProvider: React.FC<{ children: React.ReactNode }> = ({ c
         stats,
         loading,
         error,
+        bankId,
+        theme,
         refreshChecks: fetchChecks,
         addCheck,
       }}

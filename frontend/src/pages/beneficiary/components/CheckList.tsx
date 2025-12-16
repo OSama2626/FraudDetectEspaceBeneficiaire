@@ -22,13 +22,13 @@ const getStatusBadge = (statut: string) => {
 };
 
 const CheckList = () => {
-  const { checks, loading, error } = useBeneficiary();
+  const { checks, loading, error, theme } = useBeneficiary();
 
   if (loading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center h-64">
-          <Loader className="w-8 h-8 animate-spin text-blue-600" />
+          <Loader className="w-8 h-8 animate-spin" style={{ color: theme.hex }} />
         </CardContent>
       </Card>
     );
@@ -46,16 +46,20 @@ const CheckList = () => {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Mes chèques</CardTitle>
+      <CardHeader className="border-b-2" style={{ borderBottomColor: theme.hex }}>
+        <CardTitle style={{ color: theme.hex }}>Mes chèques</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4">
         {checks.length === 0 ? (
           <p className="text-gray-500 text-center py-8">Aucun chèque trouvé</p>
         ) : (
           <div className="space-y-4">
             {checks.map((check) => (
-              <div key={check.id} className="p-4 border rounded-lg flex justify-between items-center">
+              <div 
+                key={check.id} 
+                className="p-4 border rounded-lg flex justify-between items-center hover:shadow-md transition-shadow"
+                style={{ borderLeftWidth: '4px', borderLeftColor: theme.hex }}
+              >
                 <div>
                   <p className="font-semibold">{check.numero}</p>
                   <p className="text-sm text-gray-500">{check.banque}</p>
